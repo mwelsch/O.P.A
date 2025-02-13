@@ -1,0 +1,2 @@
+def persistancy():
+    return None
