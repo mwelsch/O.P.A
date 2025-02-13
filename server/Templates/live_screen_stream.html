@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Flask-SocketIO Test</title>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function() {
+            var socket = io();
+
+            socket.on("connect", () => {
+              console.log(socket.connected); // true
+            });
+
+            socket.on("disconnect", () => {
+              console.log(socket.connected); // false
+            });
+
+            // Function to request the newest image every second
+            window.setInterval(function() {
+                socket.emit('get_newest_image');
+            }, 200);
+
+            // When "newest_image_returned" is received, update the div with id "last_image"
+            socket.on('newest_image_returned', ({type, data}) => {
+                if (data) {
+                    $('#last_image').html('<img src="data:image/png;base64,' + data + '" alt="Newest Image" style="max-width: 100%;">');
+        }
+    });
+});
+    </script>
+</head>
+<body>
+    <h1>Flask-SocketIO Test</h1>
+    <div id="last_image"> </div>
+</body>
+</html>
