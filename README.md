@@ -13,7 +13,8 @@
 - [ ] Update the payload remotely
 - [ ] File explorer with download, upload, create and delete features
 - [ ] Integrate open source tools like:
-  - [ ] (Windows) https://github.com/itm4n/PrivescCheck
+  - [ ] (Windows, Linux, MacOS) https://github.com/peass-ng/PEASS-ng
+  - [ ] (Probably deprecated because of the first tool; Windows) https://github.com/itm4n/PrivescCheck
   - [ ] (Windows) https://github.com/mandiant/SharPersist
   - [ ] (Windows) https://github.com/S3cur3Th1sSh1t/WinPwn
   - [ ] (Linux) https://github.com/liamg/traitor
