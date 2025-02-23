@@ -24,6 +24,11 @@ def live_stream():
 def get_newest_image():
     handler.stream_newest_image()
 
+@socketio.on('request_clients')
+def requesting_clients():
+    dummy_clients = ['Client 1', 'Client 2', 'Client 3', 'Client 4']
+    emit('update_clients', dummy_clients)
+
 @socketio.on('connect')
 def handle_connect():
     print("Client connected")

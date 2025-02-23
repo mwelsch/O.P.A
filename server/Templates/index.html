@@ -1,50 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-		<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-		<script src="{{ url_for('static', filename='password-logic.js') }}"></script>
+	<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+	<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
+	<script src="{{ url_for('static', filename='password-logic.js') }}"></script>
 	<!-- gets the clients from the server -->
-<script>
-	window.passwordReady
-    .then(function(password) {
-        // Use the password here
-        console.log('Password available:', password);
-        initializeSocketConnection(password);
-    })
-    .fail(function(error) {
-        console.error('Password error:', error);
-        handlePasswordError(error);
-    });
+	<script>
+		window.passwordReady
+		.then(function(password) {
+			// Use the password here
+			console.log('Password available:', password);
+			initializeSocketConnection(password);
+		})
+		.fail(function(error) {
+			console.error('Password error:', error);
+			handlePasswordError(error);
+		});
 
-	function initializeSocketConnection(password) {
-		 const socket = io();
+		function initializeSocketConnection(password) {
+			 const socket = io();
 
-        // Request initial list when connected
-        socket.on('connect', function() {
-            socket.emit('request_clients');
-        });
+			// Request initial list when connected
+			socket.on('connect', function() {
+				socket.emit('request_clients');
+			});
 
-        // Handle list updates from server
-        socket.on('update_clients', function(clients) {
-            const container = $('#active-clients');
-            container.empty();  // Clear current list
+			// Handle list updates from server
+			socket.on('update_clients', function(clients) {
+				const container = $('#active-clients');
+				container.empty();  // Clear current list
 
-            // Create a new list
-            const list = $('<ul>');
-            clients.forEach(function(client) {
-                list.append($('<li>').text(client));
-            });
+				// Create a new list
+				const list = $('<ul>');
+				clients.forEach(function(client) {
+					list.append($('<li>').text(client));
+				});
 
-            container.append(list);
-        });
+				container.append(list);
+			});
 
-        // Optional: Handle connection errors
-        socket.on('connect_error', function(error) {
-            console.error('Connection Error:', error);
-        });
-	}
+			// Optional: Handle connection errors
+			socket.on('connect_error', function(error) {
+				console.error('Connection Error:', error);
+			});
+		}
 
-</script>
+	</script>
 </head>
 <body>
 	<div id="set-seconds">

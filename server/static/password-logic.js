@@ -38,6 +38,6 @@ function setCookie(name, value, days) {
       console.log("PASSWORD COOKIE:")
       console.log(storedPassword)
       console.log("Calling the promise with the loaded password...")
-      window.passwordReady.resolve(password);
+      window.passwordReady.resolve(storedPassword);
 
     });
