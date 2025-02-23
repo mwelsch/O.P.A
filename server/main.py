@@ -20,9 +20,6 @@ def show_screen():
 def live_stream():
     return render_template('live_screen_stream.html')
 
-@app.route('/logic.js', methods=['GET'])
-def server_static_logic_js():
-    return render_template('logic.js')
 @socketio.on('get_newest_image')
 def get_newest_image():
     handler.stream_newest_image()
