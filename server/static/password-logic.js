@@ -1,4 +1,4 @@
-
+window.passwordReady = window.passwordReady || $.Deferred();
 function setCookie(name, value, days) {
       const d = new Date();
       d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000)); // days -> milliseconds
@@ -34,7 +34,10 @@ function setCookie(name, value, days) {
           alert("No password entered, and no cookie set.");
         }
       }
+
       console.log("PASSWORD COOKIE:")
       console.log(storedPassword)
+      console.log("Calling the promise with the loaded password...")
+      window.passwordReady.resolve(password);
 
     });
