@@ -18,7 +18,11 @@
 		});
 
 		function initializeSocketConnection(password) {
-			 const socket = io();
+			 const socket = io({
+			 auth: {
+				 password: password
+			 }
+			});
 
 			// Request initial list when connected
 			socket.on('connect', function() {
