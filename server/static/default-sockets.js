@@ -33,10 +33,12 @@ window.passwordReady
 			 const socket = io({
 			 auth: {
 				 password: password
-			 }
+			 }});
 			 // Display correct socket status
 			 socket.on('connect', function(){
 			    setSocketStatusDivContent("Connected via SocketIO to the Server. Ready for operation");
+                console.log('Connected successfully via SocketIO.');
+
 			 });
 			 // Handle invalid password
 			socket.on('invalid_password', function(error) {
@@ -51,6 +53,4 @@ window.passwordReady
 				setSocketStatusDivContent("Server disconnected. Maybe the connection is broken or the server has been shut down?")
 			});
 			 window.socketReady.resolve(socket);
-			});
-
 		}

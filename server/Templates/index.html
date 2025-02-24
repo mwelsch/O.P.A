@@ -4,6 +4,8 @@
 	<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 	<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
 	<script src="{{ url_for('static', filename='password-logic.js') }}"></script>
+	<script src="{{ url_for('static', filename='default-sockets.js') }}"></script>
+
 	<!-- gets the clients from the server -->
 	<script>
 		window.socketReady
@@ -17,9 +19,9 @@
 		function defineSocketFunction(socket) {
 			// Request initial list when connected
 			socket.on('connect', function() {
+				console.log('This is the second definition of what to do at the event socket.on.connect. Seems like I can define in multiple places what to do and all of the code will get executed eventually');
 				socket.emit('request_clients');
 			});
-			socket.emit('request_clients'); //I am unsure if the socket is already connecting in the back
 
 			// Handle list updates from server
 			socket.on('update_clients', function(clients) {
