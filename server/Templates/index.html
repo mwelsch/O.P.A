@@ -6,28 +6,20 @@
 	<script src="{{ url_for('static', filename='password-logic.js') }}"></script>
 	<!-- gets the clients from the server -->
 	<script>
-		window.passwordReady
-		.then(function(password) {
-			// Use the password here
-			console.log('Password available:', password);
-			initializeSocketConnection(password);
+		window.socketReady
+		.then(function(socket) {
+			console.log('Socket ready and connected. Defining per website listening/receiving functions');
+			defineSocketFunction(socket);
 		})
 		.fail(function(error) {
-			console.error('Password error:', error);
-			handlePasswordError(error);
+			console.error('Some failure during defining socket functions');
 		});
-
-		function initializeSocketConnection(password) {
-			 const socket = io({
-			 auth: {
-				 password: password
-			 }
-			});
-
+		function defineSocketFunction(socket) {
 			// Request initial list when connected
 			socket.on('connect', function() {
 				socket.emit('request_clients');
 			});
+			socket.emit('request_clients'); //I am unsure if the socket is already connecting in the back
 
 			// Handle list updates from server
 			socket.on('update_clients', function(clients) {
@@ -42,16 +34,14 @@
 
 				container.append(list);
 			});
-
-			// Optional: Handle connection errors
-			socket.on('connect_error', function(error) {
-				console.error('Connection Error:', error);
-			});
 		}
+
 
 	</script>
 </head>
 <body>
+	<div id="socketio-status">
+	</div>
 	<div id="set-seconds">
 	</div>
 	<div id="active-clients">
