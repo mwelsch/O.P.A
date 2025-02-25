@@ -1,6 +1,7 @@
 import base64
 import socketio
 import requests
+from socketio.exceptions import BadNamespaceError
 
 
 class Server:
@@ -15,7 +16,10 @@ class Server:
         file.seek(0)
         myobj = {'file': file}
         file_bytes = file.read()
-        self.sio.emit('upload_screenshot', file_bytes)
+        try:
+            self.sio.emit('upload_screenshot', file_bytes)
+        except BadNamespaceError:
+            print("I guess the server is down...")
         print("Sent screenshot")
         """
         #make a POST request to my_server

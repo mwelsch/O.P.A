@@ -1,25 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-
+<!DOCTYPE HTML>
+<html>
 <head>
+    <title>ClientView</title>
 	<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 	<script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
 	<script src="{{ url_for('static', filename='password-logic.js') }}"></script>
 	<script src="{{ url_for('static', filename='default-sockets.js') }}"></script>
-	<!--<script src="{{ url_for('static', filename='live-screen-stream.js') }}"></script>-->
-
-	<!-- gets the clients from the server -->
-	<!--
-	password-logic gets called when the document is ready
-	window.passwordReady is called by the password-logic.js upon completion
-	it's behaviour is defined in default-sockets.js. This calls
-	the window.liveStreamCapabilities which is defined in live-screen-stream
-		(and in the future more stuff that adds functionality to the socket)
-	afterwards the window.socketReady, the behaviour is defined here
-
-	-->
-	<script>
-
+	<script src="{{ url_for('static', filename='live-screen-stream.js') }}"></script>
+    <script>
 		window.socketReady
 		.then(function(socket) {
 			console.log('General socket functionallity defined. Defining per website listening/receiving functions');
@@ -36,38 +24,14 @@
 				socket.emit('request_clients');
 			});
 
-			// Handle list updates from server
-			socket.on('update_clients', function(clients) {
-				const container = $('#active-clients');
-				container.empty(); // Clear current list
-
-				// Create a new list
-				const list = $('<ul>');
-				clients.forEach(function(client) {
-					const li = $('<li>');
-					const link = $('<a>')
-						.attr('href', '/control?payload_id=' + encodeURIComponent(client))
-						.text(client);
-					li.append(link);
-					list.append(li);
-				});
-
-				container.append(list);
-			});
-
-
 		}
+
 	</script>
 </head>
-
 <body>
-
+    <h1>Streaming image via SocketIO</h1>
 	<div id="socketio-status"></div>
-	<div id="set-seconds"></div>
-	<div id="active-clients"></div>
-	<div id="disconnected-clients"></div>
-	<div id="last_image"></div>
-
+	<button id="toggle-btn">Start Livestream</button>
+    <div id="last_image"> </div>
 </body>
-
 </html>

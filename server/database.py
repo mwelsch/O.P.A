@@ -20,11 +20,15 @@ class PseudoDatabase:
     def add_payload_client(self, sid):
         self.payload_list.append(sid)
 
+
     def add_livestream(self, payload_sid, browser_sid):
         if payload_sid in self.livestreams.keys():
             self.livestreams[payload_sid].append(browser_sid)
         else:
             self.livestreams[payload_sid] = [browser_sid]
+
+    def remove_livestream(self, payload_sid, browser_sid):
+        self.livestreams[payload_sid].remove(browser_sid)
 
     def update_last_screenshot(self, device_id, file):
         self.screenshot_database[device_id] = file

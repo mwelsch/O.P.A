@@ -22,7 +22,7 @@
   - [ ] ~~Tactics highlighted here https://attack.mitre.org/tactics/TA0003/ and here https://swisskyrepo.github.io/InternalAllTheThings/redteam/evasion/windows-amsi-bypass/#which-endpoint-protection-is-using-amsi~~ --> private repo
 - [ ] Automatically generate report about system; including the above state open source tools checking for weaknesses
 - [ ] Remote log viewer (for debugging)
-- [ ] Server can handle multiple payloads connected to it in parallel
+- [x] Server can handle multiple payloads connected to it in parallel
 - [x] Secure flask server [with password]
 - [ ] (Optional) Payload can handle stuff via GMAIL and does not need a server
 - [ ] (Optional) Server provides compiled executables via its webinterface
