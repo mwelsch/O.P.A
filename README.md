@@ -23,7 +23,7 @@
 - [ ] Automatically generate report about system; including the above state open source tools checking for weaknesses
 - [ ] Remote log viewer (for debugging)
 - [ ] Server can handle multiple payloads connected to it in parallel
-- [ ] Secure flask server [with password]
+- [x] Secure flask server [with password]
 - [ ] (Optional) Payload can handle stuff via GMAIL and does not need a server
 - [ ] (Optional) Server provides compiled executables via its webinterface
 - [ ] (Optional) Leave no trace because everything is loaded into memory

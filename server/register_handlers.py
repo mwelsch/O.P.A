@@ -8,10 +8,12 @@ def register_socket_io_handlers(socketio, socketio_handler):
 
     @socketio.on('request_clients')
     def requesting_clients():
-        socketio_handler.reqest_clients()
+        socketio_handler.request_clients()
 
     @socketio.on('connect')
     def handle_connect(auth):
+        print("AUTH")
+        print(auth)
         if not socketio_handler.new_connection(auth):
             return False
 
@@ -19,15 +21,20 @@ def register_socket_io_handlers(socketio, socketio_handler):
     def test_disconnect():
         socketio_handler.disconnect_client()
 
+    @socketio.on('upload_screenshot')
+    def receive_sceenshot(screenshot):
+        socketio_handler.receive_screenshot(screenshot)
+
+    @socketio.on('start_live_stream')
+    def start_live_stream():
+        socketio_handler.start_live_stream("of_payload_sid")
+
 def register_http_handlers(app, rest_handler):
-    @app.route('/', methods=['POST'])
+    @app.route('/', methods=['GET', 'POST'])
     def receive_screenshot():
         return rest_handler.screenshot_received(request)
 
-    @app.route('/control', methods=['GET', 'POST'])
-    def show_screen():
-        return render_template('control.html')
-        #return rest_handler.control_view()
+
 
     @app.route('/live_stream', methods=['GET', 'POST'])
     def live_stream():
