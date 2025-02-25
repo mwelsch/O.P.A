@@ -5,10 +5,10 @@ from flask_socketio import emit
 
 from server.database import PseudoDatabase
 
+class RESTServerHandler:
+    def __init__(self, database):
+        self.database = database
 
-class ServerHandler:
-    def __init__(self):
-        self.database = PseudoDatabase()
     def screenshot_received(self, request):
         if request.method == 'POST':
             api_key = request.headers.get("Authorization")
@@ -24,16 +24,8 @@ class ServerHandler:
         return render_template('index.html')
 
     def control_view(self):
+        pass
 
-        #return send_file(BytesIO(self.database.get_last_screenshot()),
-        #         download_name="Renamed.jpg", as_attachment=True)
 
-        return render_template('control.html', user_image = self.database.get_last_screenshot())
-
-    def stream_newest_image(self):
-        print("streaming_newest_image")
-        print(self.database.get_last_screenshot())
-        print(type(self.database.get_last_screenshot()))
-        emit('newest_image_returned', {'data': self.database.get_last_screenshot()})
 
 

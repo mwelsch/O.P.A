@@ -40,16 +40,27 @@ window.passwordReady
                 console.log('Connected successfully via SocketIO.');
 
 			 });
-			 // Handle invalid password
-			socket.on('invalid_password', function(error) {
-				console.error('Seems like you got the wrong password mate. Clearing all cookies...');
-                clearAllCookies();
-				setSocketStatusDivContent("An invalid password was provided. All cookies were deleted. Please reload the page and try again");
-			});
+			 // Handle connection error. Gets thrown with invalid passwordsinvalid password
+            socket.on("connect_error", (error) => {
+                  if (socket.active) {
+                    // temporary failure, the socket will automatically try to reconnect
+                    console.log("Temoparary socket connection error")
+                  } else {
+                    // the connection was denied by the server
+                    // in that case, `socket.connect()` must be manually called in order to reconnect
+                    console.log(error.message);
+                    clearAllCookies();
+                    setSocketStatusDivContent("Connect Error. Cleared Saved Password because this behaviour is only expected when you provide a wrong password. Reloading page in 10 seconds...")
+                    setTimeout(function() {
+                        location.reload();
+                    }, 10000);
+                  }
+                });
 
 			// Optional: Handle connection errors
 			socket.on('disconnect', function(reason) {
-				console.log('Server disconnected')
+
+				console.log('Server disconnected. Reason:' + reason)
 				setSocketStatusDivContent("Server disconnected. Maybe the connection is broken or the server has been shut down?")
 			});
 			 window.socketReady.resolve(socket);
