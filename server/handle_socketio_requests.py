@@ -5,6 +5,9 @@ from flask import request
 from server.authorization import authorized_for_socket_io
 
 
+
+
+
 class SocketIOServerHandler:
     def __init__(self, database):
         self.database = database
@@ -67,5 +70,8 @@ class SocketIOServerHandler:
     def execute(self, payload_sid, command):
         if authorized_for_socket_io(request.sid, self.database):
             emit('execute', command, to=payload_sid)
-            e
 
+    def broadcast_output_of_command(self, output):
+        print("Received execution order successful")
+        # ToDo NOT SECURE
+        emit("output_of_command", {"data": output}, broadcast=True)

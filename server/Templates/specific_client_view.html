@@ -7,6 +7,8 @@
 	<script src="{{ url_for('static', filename='password-logic.js') }}"></script>
 	<script src="{{ url_for('static', filename='default-sockets.js') }}"></script>
 	<script src="{{ url_for('static', filename='live-screen-stream.js') }}"></script>
+	<script src="{{ url_for('static', filename='execute.js') }}"></script>
+
     <script>
 		window.socketReady
 		.then(function(socket) {
@@ -33,5 +35,8 @@
 	<div id="socketio-status"></div>
 	<button id="toggle-btn">Start Livestream</button>
     <div id="last_image"> </div>
+	<div id="command_div"><input type="text" id="command_content" placeholder="ping 1.1.1.1"> </div>
+	<button id="execute-btn">Execute Command</button>
+	<div id="command_output"></div>
 </body>
 </html>

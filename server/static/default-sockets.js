@@ -3,6 +3,7 @@
 */
 window.socketReady = window.socketReady || $.Deferred();
 window.liveStreamCapabilities = window.liveStreamCapabilities || $.Deferred();
+window.executeCapabilities = window.executeCapabilities || $.Deferred();
 
 window.passwordReady
     .then(function(password) {
@@ -28,6 +29,8 @@ function setSocketStatusDivContent(newStatus){
     container.empty();  // Clear current status
     container.append("<h1>"+newStatus+"</h1>");
 }
+
+
 
 function initializeSocketConnection(password) {
      setSocketStatusDivContent("Creating socketIO. As long as you see this, the connection is not working properly")
@@ -67,5 +70,6 @@ function initializeSocketConnection(password) {
         setSocketStatusDivContent("Server disconnected. Maybe the connection is broken or the server has been shut down?")
     });
     window.liveStreamCapabilities.resolve(socket);
+    window.executeCapabilities.resolve(socket);
     window.socketReady.resolve(socket);
 }

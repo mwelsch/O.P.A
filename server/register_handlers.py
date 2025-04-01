@@ -35,6 +35,15 @@ def register_socket_io_handlers(socketio, socketio_handler):
     def executor(of_payload_sid, command):
         socketio_handler.execute(of_payload_sid, command)
 
+    @socketio.on('output_of_command')
+    def broadcast_output_of_command(output):
+        #ToDo implement a clean way of not broadcasting the output
+        #but only send it to the socketio client who requested it
+        print("Received execution order successful")
+        print("output:")
+        print(output)
+        socketio_handler.broadcast_output_of_command(output)
+
 def register_http_handlers(app, rest_handler):
     @app.route('/', methods=['GET', 'POST'])
     def receive_screenshot():

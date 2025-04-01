@@ -3,7 +3,11 @@ window.liveStreamCapabilities.then(function(socket) {
             if (data) {
                 $('#last_image').empty();
                 $('#last_image').html('<img src="data:image/png;base64,' + data + '" alt="Newest Image" style="max-width: 100%;">');
-        }
+            }
+    });
+
+    socket.on('connect', function(){
+        socket.emit('request_clients');
     });
     socket.on('update_clients', function(clients) {
         var clientStillAvailable = checkAvailabilityOfClient(clients);
@@ -11,9 +15,7 @@ window.liveStreamCapabilities.then(function(socket) {
             location.href = "/";
         }
     });
-    socket.on('connect', function(){
-        socket.emit('request_clients');
-    });
+
     $("#toggle-btn").click(function(){
         if ($("#toggle-btn").text() == "Start Livestream"){
             startLiveStream(socket);
@@ -24,6 +26,11 @@ window.liveStreamCapabilities.then(function(socket) {
         }
         });
 });
+
+function startLiveStream(socket){
+    socket.emit("start_live_stream", getUrlParameter("payload_id"));
+    console.log("Starting live screen stream for" + getUrlParameter("payload_id"))
+}
 function checkAvailabilityOfClient(clients){
     var target = getUrlParameter("payload_id");
     var retu_value = false;
@@ -33,10 +40,6 @@ function checkAvailabilityOfClient(clients){
         }
     });
     return retu_value;
-}
-function startLiveStream(socket){
-    socket.emit("start_live_stream", getUrlParameter("payload_id"));
-    console.log("Starting live screen stream for" + getUrlParameter("payload_id"))
 }
 function getUrlParameter(sParam) {
     var sPageURL = window.location.search.substring(1);

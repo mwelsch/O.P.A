@@ -1,10 +1,9 @@
-import threading
 from time import sleep
 
 import server_communication
 
 def read_config():
-    pass
+    print("Reading config")
 
 print("HIHIHI")
 if __name__ == '__main__':

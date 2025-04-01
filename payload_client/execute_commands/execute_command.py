@@ -1,9 +1,11 @@
 import platform
 
+from flask_socketio import emit
+
 from payload_client.execute_commands.powershell import PowershellExecuter
 
 
-class CodeExecutor():
+class CodeExecutor:
     def __init__(self):
         self.os = platform.system()
         if self.os == "Windows":
