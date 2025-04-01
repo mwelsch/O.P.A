@@ -45,16 +45,27 @@ class SocketIOServerHandler:
         except KeyError:
             print("KeyError when popping client, he disconnected but wasnt in the authorized database?!")
 
-    def start_live_stream(self, of_paylod_sid):
-        self.database.add_livestream(of_paylod_sid, request.sid)
+    def start_live_stream(self, of_payload_sid):
+        # ToDo possibly not secured
+        emit("start_screen_capture", to=of_payload_sid)
+        self.database.add_livestream(of_payload_sid, request.sid)
 
     def stop_live_stream(self, of_payload_sid):
+        #ToDo possibly not secured
+        emit("stop_screen_capture", to=of_payload_sid)
         self.database.remove_livestream(of_payload_sid, request.sid)
 
     def emit_screenshot_stream_for(self, payload_sid):
+        # ToDo possibly not secured
         livestreams = self.database.get_livestreams()
         if payload_sid in livestreams.keys():
             livestreams = livestreams[payload_sid]
             for browser_sid in livestreams:
                 #print("Emitting newest image, but only to the clients who requested it")
                 emit('newest_image_returned', {'data': self.database.get_last_screenshot(payload_sid)}, to=browser_sid)
+
+    def execute(self, payload_sid, command):
+        if authorized_for_socket_io(request.sid, self.database):
+            emit('execute', command, to=payload_sid)
+            e
+

@@ -1,5 +1,5 @@
 # Python code for keylogger
-# to be used in windows
+# to be used in powershell
 
 
 

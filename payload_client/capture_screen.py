@@ -1,55 +1,63 @@
 import asyncio
 import io
-from typing import IO
-
+import threading
 import pyautogui
-import pyscreeze
 
+class ScreenCapture:
+    def __init__(self, uploader):
+        self.uploader = uploader
+        self._timeout = 1.0  # Default to 1 FPS
+        self._timeout_lock = threading.Lock()
+        self._running_event = threading.Event()
+        self._loop = None
+        self._grab_task = None
+        self._upload_task = None
+        self._queue = None
+        self._thread = threading.Thread(target=self._run_event_loop, daemon=True)
+        self._thread.start()
 
-import mss
-import mss.tools
+    def _run_event_loop(self):
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        self._queue = asyncio.Queue()
+        self._loop.run_forever()
 
-async def upload(queue: asyncio.Queue, uploader):
-    while True:
-        img = await queue.get()  # ✅ Await the queue
-        if img is None:
-            break
-        #uploader.send_screenshot(mss.tools.to_png(img.rgb, img.size))
-        uploader.send_screenshot(img)
+    def start_screen_capture(self):
+        if self._running_event.is_set():
+            return
+        self._running_event.set()
+        self._grab_task = asyncio.run_coroutine_threadsafe(self._grab(), self._loop)
+        self._upload_task = asyncio.run_coroutine_threadsafe(self._upload(), self._loop)
 
-async def grab(queue: asyncio.Queue):
-    while True:
-        im1 = pyautogui.screenshot()
-        byte_streams = io.BytesIO(b"")
-        im1.save(byte_streams, "png")
-        await queue.put(byte_streams)
-        await asyncio.sleep(1)
+    async def _grab(self):
+        while self._running_event.is_set():
+            im = pyautogui.screenshot()
+            byte_stream = io.BytesIO()
+            im.save(byte_stream, format="png")
+            await self._queue.put(byte_stream)
+            with self._timeout_lock:
+                timeout = self._timeout
+            await asyncio.sleep(timeout)
 
+    async def _upload(self):
+        while True:
+            img = await self._queue.get()
+            if img is None:
+                break
+            self.uploader.send_screenshot(img.getvalue())
 
-    """rect = {"top": 0, "left": 0, "width": 600, "height": 800}
-    with mss.mss() as sct:
-        for _ in range(10):  # Capture 10 frames
-            screenshot = sct.grab(rect)
-            await queue.put(screenshot)  # ✅ Async queue.put()
-            await asyncio.sleep(1)  # ✅ Async sleep
+    def stop_screen_capture(self):
+        if not self._running_event.is_set():
+            return
+        self._running_event.clear()
+        # Signal upload to stop by sending None
+        asyncio.run_coroutine_threadsafe(self._queue.put(None), self._loop).result()
+        # Wait for tasks to complete
+        self._grab_task.result()
+        self._upload_task.result()
 
-    await queue.put(None)  # ✅ Send stop signal"""
-
-async def screen_capture_async(uploader):
-    queue = asyncio.Queue()  # ✅ Use asyncio.Queue()
-
-    # Run grabber and uploader concurrently
-    await asyncio.gather(
-        grab(queue),
-        upload(queue, uploader)
-    )
-
-# Example usage:
-
-
-def screen_capture(uploader):
-    print("HI")
-    loop = asyncio.new_event_loop()  # ✅ Create a new event loop
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(screen_capture_async(uploader))  # ✅ Run the async function
-    loop.close()  # ✅ Clean up the loop
+    def set_frames_per_second(self, fps):
+        if fps <= 0:
+            raise ValueError("FPS must be greater than 0")
+        with self._timeout_lock:
+            self._timeout = 1.0 / fps

@@ -31,6 +31,10 @@ def register_socket_io_handlers(socketio, socketio_handler):
     def stop_live_stream(of_payload_sid):
         socketio_handler.stop_live_stream(of_payload_sid)
 
+    @socketio.on('execute')
+    def executor(of_payload_sid, command):
+        socketio_handler.execute(of_payload_sid, command)
+
 def register_http_handlers(app, rest_handler):
     @app.route('/', methods=['GET', 'POST'])
     def receive_screenshot():
