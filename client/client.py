@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import sys
 import time
 import base64
 import io
@@ -13,6 +12,7 @@ SERVER_URL = os.environ.get('SERVER_URL', 'http://localhost:8000')
 CLIENT_ID = os.environ.get('CLIENT_ID', os.environ.get('HOSTNAME', 'client') + '-' + str(os.getpid()))
 FPS = 5
 FRAME_INTERVAL = 1.0 / FPS
+RECONNECT_INTERVAL = int(os.environ.get('RECONNECT_INTERVAL', 1)) * 60
 
 sio = socketio.Client(reconnection=True, reconnection_attempts=0)
 
@@ -33,7 +33,7 @@ def capture_screenshot():
 @sio.event
 def connect():
     print(f"Connected to server as {CLIENT_ID}")
-    sio.emit('connect', {'client_id': CLIENT_ID})
+    sio.emit('register', {'client_id': CLIENT_ID})
 
 @sio.event
 def connect_error(data):
@@ -47,16 +47,22 @@ def main():
     print(f"Remote Debug Client - {CLIENT_ID}")
     print(f"Server: {SERVER_URL}")
     print(f"Target FPS: {FPS}")
+    print(f"Reconnect interval: {RECONNECT_INTERVAL // 60} minute(s)")
     
-    try:
-        sio.connect(SERVER_URL, socketio_path='/socket.io')
-    except Exception as e:
-        print(f"Failed to connect: {e}")
-        sys.exit(1)
-    
+    connected = False
     last_frame_time = 0
     
     while True:
+        if not connected:
+            try:
+                sio.connect(SERVER_URL, socketio_path='/socket.io')
+                connected = True
+            except Exception as e:
+                print(f"Failed to connect: {e}")
+                print(f"Retrying in {RECONNECT_INTERVAL // 60} minute(s)...")
+                time.sleep(RECONNECT_INTERVAL)
+                continue
+        
         current_time = time.time()
         
         if current_time - last_frame_time >= FRAME_INTERVAL:
@@ -70,6 +76,11 @@ def main():
                 last_frame_time = current_time
             except Exception as e:
                 print(f"Error capturing screenshot: {e}")
+        
+        if not sio.connected:
+            connected = False
+            print("Connection lost, retrying...")
+            time.sleep(1)
         
         time.sleep(0.01)
 

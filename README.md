@@ -63,3 +63,4 @@ client.exe
 |----------|---------|-------------|
 | SERVER_URL | http://localhost:8000 | Server URL |
 | CLIENT_ID | hostname-pid | Unique client ID |
+| RECONNECT_INTERVAL | 1 | Reconnect interval in minutes |

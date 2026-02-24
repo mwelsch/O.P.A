@@ -61,16 +61,8 @@ def get_latest_screenshot(client_id):
 
 @socketio.on('connect')
 def handle_connect():
-    client_id = request.args.get('client_id')
-    if client_id:
-        clients[client_id] = {
-            'connected': True,
-            'screenshot': None,
-            'timestamp': None,
-            'sid': request.sid
-        }
-        print(f"Client connected: {client_id}")
-        emit('connected', {'client_id': client_id}, broadcast=True)
+    print(f"Client connected (sid: {request.sid})")
+    emit('connected', {'client_id': None})
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -84,6 +76,19 @@ def handle_disconnect():
         clients[client_id]['connected'] = False
         print(f"Client disconnected: {client_id}")
         emit('disconnected', {'client_id': client_id}, broadcast=True)
+
+@socketio.on('register')
+def handle_client_connect(data):
+    client_id = data.get('client_id')
+    if client_id:
+        clients[client_id] = {
+            'connected': True,
+            'screenshot': None,
+            'timestamp': None,
+            'sid': request.sid
+        }
+        print(f"Client connected: {client_id}")
+        emit('connected', {'client_id': client_id}, broadcast=True)
 
 @socketio.on('screenshot')
 def handle_screenshot(data):

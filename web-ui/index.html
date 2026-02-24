@@ -116,6 +116,7 @@
         });
 
         socket.on('connected', (data) => {
+            if (!data.client_id) return;
             if (!clients[data.client_id]) {
                 clients[data.client_id] = { screenshot: null };
             }
