@@ -1,2 +1,0 @@
-def persistancy():
-    return None
