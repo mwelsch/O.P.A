@@ -7,6 +7,7 @@ import io
 import json
 import mss
 import socketio
+from PIL import Image
 
 SERVER_URL = os.environ.get('SERVER_URL', 'http://localhost:8000')
 CLIENT_ID = os.environ.get('CLIENT_ID', os.environ.get('HOSTNAME', 'client') + '-' + str(os.getpid()))
