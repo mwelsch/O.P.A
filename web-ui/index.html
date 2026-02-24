@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Debug Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        .screenshot { object-fit: contain; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto p-4">
+        <header class="mb-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Remote Debug Tool</h1>
+            <span id="connection-status" class="text-sm px-3 py-1 rounded bg-gray-700">Connecting...</span>
+        </header>
+
+        <div id="grid-view">
+            <h2 class="text-xl mb-4">Connected Clients</h2>
+            <div id="clients-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            </div>
+        </div>
+
+        <div id="detail-view" class="hidden">
+            <button onclick="showGrid()" class="mb-4 px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">← Back</button>
+            <h2 id="detail-client-id" class="text-xl mb-4"></h2>
+            <img id="detail-screenshot" class="w-full bg-black rounded" alt="Client screenshot">
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let clients = {};
+        let selectedClient = null;
+
+        function showGrid() {
+            document.getElementById('grid-view').classList.remove('hidden');
+            document.getElementById('detail-view').classList.add('hidden');
+            selectedClient = null;
+        }
+
+        function showDetail(clientId) {
+            selectedClient = clientId;
+            document.getElementById('grid-view').classList.add('hidden');
+            document.getElementById('detail-view').classList.remove('hidden');
+            document.getElementById('detail-client-id').textContent = clientId;
+        }
+
+        function renderClients() {
+            const grid = document.getElementById('clients-grid');
+            grid.innerHTML = '';
+            
+            Object.keys(clients).forEach(clientId => {
+                const client = clients[clientId];
+                const card = document.createElement('div');
+                card.className = 'bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500';
+                card.onclick = () => showDetail(clientId);
+                
+                const img = document.createElement('img');
+                img.className = 'w-full h-32 object-cover bg-black';
+                img.src = client.screenshot || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                
+                const info = document.createElement('div');
+                info.className = 'p-2';
+                info.innerHTML = `<span class="text-sm font-mono">${clientId}</span>`;
+                
+                card.appendChild(img);
+                card.appendChild(info);
+                grid.appendChild(card);
+            });
+        }
+
+        function updateDetailScreenshot() {
+            if (selectedClient && clients[selectedClient]) {
+                const img = document.getElementById('detail-screenshot');
+                img.src = clients[selectedClient].screenshot || img.src;
+            }
+        }
+
+        socket.on('connect', () => {
+            document.getElementById('connection-status').textContent = 'Connected';
+            document.getElementById('connection-status').className = 'text-sm px-3 py-1 rounded bg-green-700';
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('connection-status').textContent = 'Disconnected';
+            document.getElementById('connection-status').className = 'text-sm px-3 py-1 rounded bg-red-700';
+        });
+
+        socket.on('connect', () => {
+            fetch('/clients')
+                .then(r => r.json())
+                .then(data => {
+                    data.forEach(c => {
+                        if (!clients[c.id]) clients[c.id] = { screenshot: null };
+                        clients[c.id].connected = c.connected;
+                    });
+                    renderClients();
+                });
+        });
+
+        socket.on('screenshot', (data) => {
+            if (!clients[data.client_id]) {
+                clients[data.client_id] = {};
+            }
+            clients[data.client_id].screenshot = data.image;
+            clients[data.client_id].timestamp = data.timestamp;
+            
+            if (selectedClient === data.client_id) {
+                updateDetailScreenshot();
+            } else {
+                renderClients();
+            }
+        });
+
+        socket.on('connected', (data) => {
+            if (!clients[data.client_id]) {
+                clients[data.client_id] = { screenshot: null };
+            }
+            clients[data.client_id].connected = true;
+            renderClients();
+        });
+
+        socket.on('disconnected', (data) => {
+            if (clients[data.client_id]) {
+                clients[data.client_id].connected = false;
+                renderClients();
+            }
+        });
+
+        setInterval(() => {
+            if (selectedClient) {
+                fetch(`/clients/${selectedClient}/latest`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.screenshot) {
+                            clients[selectedClient].screenshot = data.screenshot;
+                            updateDetailScreenshot();
+                        }
+                    })
+                    .catch(() => {});
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
