@@ -1,3 +1,4 @@
+# Human? head over to [HUMANS.md](HUMANS.md)
 # Remote Debug Tool
 
 ## Quick Start
