@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import os
+import sys
 import time
-import base64
-import io
-import json
-import mss
 import socketio
-from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import screenshot
+import files
 
 SERVER_URL = os.environ.get('SERVER_URL', 'http://localhost:8000')
 CLIENT_ID = os.environ.get('CLIENT_ID', os.environ.get('HOSTNAME', 'client') + '-' + str(os.getpid()))
@@ -14,40 +15,54 @@ FPS = 5
 FRAME_INTERVAL = 1.0 / FPS
 RECONNECT_INTERVAL = int(os.environ.get('RECONNECT_INTERVAL', 1)) * 60
 
-sio = socketio.Client(reconnection=True, reconnection_attempts=0)
+sio = socketio.Client(reconnection=False)
 
-def capture_screenshot():
-    with mss.mss() as sct:
-        monitor = sct.monitors[1]
-        screenshot = sct.grab(monitor)
-        
-        img = Image.frombytes('RGB', screenshot.size, screenshot.rgb)
-        
-        buffer = io.BytesIO()
-        img.save(buffer, format='JPEG', quality=70)
-        buffer.seek(0)
-        
-        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        return f"data:image/jpeg;base64,{img_base64}"
+is_streaming = False
+
+files.setup_file_handlers(sio)
+
+@sio.event
+def start_streaming():
+    global is_streaming
+    is_streaming = True
+    print(f"DEBUG: Server requested to start streaming")
+
+@sio.event
+def stop_streaming():
+    global is_streaming
+    is_streaming = False
+    print(f"DEBUG: Server requested to stop streaming")
 
 @sio.event
 def connect():
-    print(f"Connected to server as {CLIENT_ID}")
+    print(f"DEBUG: Connected to server, emitting register")
     sio.emit('register', {'client_id': CLIENT_ID})
+    print(f"DEBUG: Register emitted")
+
+@sio.event
+def connected(data):
+    print(f"DEBUG: Received connected event: {data}")
 
 @sio.event
 def connect_error(data):
-    print(f"Connection error: {data}")
+    print(f"DEBUG: Connection error: {data}")
 
 @sio.event
 def disconnect():
-    print("Disconnected from server")
+    global is_streaming
+    is_streaming = False
+    print(f"DEBUG: Disconnected from server")
+
+@sio.event
+def message(data):
+    print(f"DEBUG: Received message: {data}")
 
 def main():
     print(f"Remote Debug Client - {CLIENT_ID}")
     print(f"Server: {SERVER_URL}")
     print(f"Target FPS: {FPS}")
     print(f"Reconnect interval: {RECONNECT_INTERVAL // 60} minute(s)")
+    print(f"Root directory: {files.ROOT_DIR}")
     
     connected = False
     last_frame_time = 0
@@ -55,22 +70,24 @@ def main():
     while True:
         if not connected:
             try:
+                print(f"DEBUG: Attempting to connect...")
+                print(f"DEBUG: current time = "+ str(time.time()))
                 sio.connect(SERVER_URL, socketio_path='/socket.io')
+                print(f"DEBUG: Connect called, sio.connected={sio.connected}")
                 connected = True
             except Exception as e:
                 print(f"Failed to connect: {e}")
-                print(f"Retrying in {RECONNECT_INTERVAL // 60} minute(s)...")
                 time.sleep(RECONNECT_INTERVAL)
                 continue
         
         current_time = time.time()
         
-        if current_time - last_frame_time >= FRAME_INTERVAL:
+        if is_streaming and current_time - last_frame_time >= FRAME_INTERVAL:
             try:
-                screenshot = capture_screenshot()
+                screenshot_data = screenshot.capture_screenshot()
                 sio.emit('screenshot', {
                     'client_id': CLIENT_ID,
-                    'image': screenshot,
+                    'image': screenshot_data,
                     'timestamp': time.time()
                 })
                 last_frame_time = current_time
@@ -79,8 +96,8 @@ def main():
         
         if not sio.connected:
             connected = False
-            print("Connection lost, retrying...")
-            time.sleep(1)
+            print(f"DEBUG: Connection lost, sio.connected={sio.connected}")
+            time.sleep(RECONNECT_INTERVAL)
         
         time.sleep(0.01)
 

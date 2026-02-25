@@ -25,8 +25,15 @@
 
         <div id="detail-view" class="hidden">
             <button onclick="showGrid()" class="mb-4 px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">← Back</button>
+            <button onclick="showFiles()" class="mb-4 ml-2 px-4 py-2 bg-blue-700 rounded hover:bg-blue-600">📁 Files</button>
             <h2 id="detail-client-id" class="text-xl mb-4"></h2>
             <img id="detail-screenshot" class="w-full bg-black rounded" alt="Client screenshot">
+        </div>
+
+        <div id="file-view" class="hidden">
+            <button onclick="showDetail(selectedClient)" class="mb-4 px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">← Back</button>
+            <h2 id="file-browser-title" class="text-xl mb-4"></h2>
+            <div id="file-list" class="bg-gray-800 rounded p-4"></div>
         </div>
     </div>
 
@@ -34,18 +41,120 @@
         const socket = io();
         let clients = {};
         let selectedClient = null;
+        let currentPath = '';
 
         function showGrid() {
+            if (selectedClient) {
+                socket.emit('stop_viewing', {client_id: selectedClient});
+            }
             document.getElementById('grid-view').classList.remove('hidden');
             document.getElementById('detail-view').classList.add('hidden');
+            document.getElementById('file-view').classList.add('hidden');
             selectedClient = null;
+            currentPath = '';
         }
 
         function showDetail(clientId) {
+            if (selectedClient && selectedClient !== clientId) {
+                socket.emit('stop_viewing', {client_id: selectedClient});
+            }
             selectedClient = clientId;
+            currentPath = '';
             document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('detail-view').classList.remove('hidden');
+            document.getElementById('file-view').classList.add('hidden');
             document.getElementById('detail-client-id').textContent = clientId;
+            socket.emit('start_viewing', {client_id: clientId});
+        }
+
+        function showFiles() {
+            document.getElementById('detail-view').classList.add('hidden');
+            document.getElementById('file-view').classList.remove('hidden');
+            currentPath = '';
+            loadFileList('');
+        }
+
+        async function loadFileList(path) {
+            currentPath = path;
+            const displayPath = path ? '/' + path : '/';
+            document.getElementById('file-browser-title').textContent = `Files: ${displayPath}`;
+            
+            console.log('Loading file list for path:', path);
+            
+            try {
+                const resp = await fetch(`/file/${selectedClient}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({path: path})
+                });
+                const data = await resp.json();
+                console.log('File list response:', data);
+                
+                const fileList = document.getElementById('file-list');
+                fileList.innerHTML = '';
+                
+                if (data.is_dir) {
+                    if (path) {
+                        const parentBtn = document.createElement('div');
+                        parentBtn.className = 'flex items-center p-2 hover:bg-gray-700 cursor-pointer rounded';
+                        parentBtn.onclick = () => loadFileList(path.split('/').slice(0, -1).join('/'));
+                        parentBtn.innerHTML = '<span class="text-2xl mr-2">📁</span><span class="text-blue-400">..</span>';
+                        fileList.appendChild(parentBtn);
+                    }
+                    
+                    data.items.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'flex items-center justify-between p-2 hover:bg-gray-700 rounded';
+                        
+                        const left = document.createElement('div');
+                        left.className = 'flex items-center cursor-pointer flex-1';
+                        left.onclick = () => {
+                            if (item.is_dir) {
+                                const newPath = path ? path + '/' + item.name : item.name;
+                                loadFileList(newPath);
+                            } else {
+                                openFile(path ? path + '/' + item.name : item.name);
+                            }
+                        };
+                        left.innerHTML = `<span class="text-2xl mr-2">${item.is_dir ? '📁' : '📄'}</span><span>${item.name}</span>`;
+                        
+                        const right = document.createElement('div');
+                        if (!item.is_dir) {
+                            const openBtn = document.createElement('button');
+                            openBtn.className = 'px-2 py-1 bg-green-700 rounded text-sm hover:bg-green-600 mr-2';
+                            openBtn.textContent = 'Open in Browser';
+                            openBtn.onclick = (e) => { e.stopPropagation(); openFile(path ? path + '/' + item.name : item.name); };
+                            
+                            const dlBtn = document.createElement('button');
+                            dlBtn.className = 'px-2 py-1 bg-blue-700 rounded text-sm hover:bg-blue-600';
+                            dlBtn.textContent = 'Download';
+                            dlBtn.onclick = (e) => { e.stopPropagation(); downloadFile(path ? path + '/' + item.name : item.name); };
+                            
+                            right.appendChild(openBtn);
+                            right.appendChild(dlBtn);
+                        }
+                        
+                        row.appendChild(left);
+                        row.appendChild(right);
+                        fileList.appendChild(row);
+                    });
+                } else {
+                    const msg = document.createElement('div');
+                    msg.className = 'text-gray-400';
+                    msg.textContent = 'This is a file, not a directory';
+                    fileList.appendChild(msg);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function openFile(path) {
+            window.open(`/file/${selectedClient}/${encodeURIComponent(path)}`, '_blank');
+        }
+
+        function downloadFile(path) {
+            window.open(`/download/${selectedClient}/${encodeURIComponent(path)}`, '_blank');
         }
 
         function renderClients() {
@@ -89,7 +198,23 @@
             document.getElementById('connection-status').className = 'text-sm px-3 py-1 rounded bg-red-700';
         });
 
+        let lastReload = parseInt(sessionStorage.getItem('lastReload') || '0');
+        let hasConnectedBefore = sessionStorage.getItem('hasConnectedBefore') === 'true';
+
+        socket.on('reload', () => {
+            if (!hasConnectedBefore) return;
+            const now = Date.now();
+            if (now - lastReload > 5000) {
+                console.log('Server restarted, reloading...');
+                lastReload = now;
+                sessionStorage.setItem('lastReload', now.toString());
+                setTimeout(() => window.location.reload(), 100);
+            }
+        });
+
         socket.on('connect', () => {
+            hasConnectedBefore = true;
+            sessionStorage.setItem('hasConnectedBefore', 'true');
             fetch('/clients')
                 .then(r => r.json())
                 .then(data => {
@@ -129,6 +254,14 @@
                 clients[data.client_id].connected = false;
                 renderClients();
             }
+        });
+
+        socket.on('client_removed', (data) => {
+            delete clients[data.client_id];
+            if (selectedClient === data.client_id) {
+                showGrid();
+            }
+            renderClients();
         });
 
         setInterval(() => {
