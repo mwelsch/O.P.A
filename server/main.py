@@ -99,17 +99,27 @@ def get_latest_screenshot(client_id):
 
 @socketio.on('connect')
 def handle_connect():
-    print(f"DEBUG: Socket connect received, sid={request.sid}")
+    import time as time_module
+    print(f"DEBUG SOCKET: [{time_module.time()}] New socket connected, sid={request.sid}")
+    # Check if this is a debug client or web UI
+    # Debug clients will emit 'register' event, web UI won't
+    print(f"DEBUG SOCKET: [{time_module.time()}] Waiting to see if this is client or web UI...")
     socketio.emit('reload')
-    print(f"DEBUG: Sent reload signal to client")
+    print(f"DEBUG SOCKET: [{time_module.time()}] Sent reload signal to sid={request.sid}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
+    import time as time_module
     client_id = None
     for cid, data in clients.items():
         if data.get('sid') == request.sid:
             client_id = cid
             break
+    
+    if client_id:
+        print(f"DEBUG SOCKET: [{time_module.time()}] Client disconnected: {client_id}, sid={request.sid}")
+    else:
+        print(f"DEBUG SOCKET: [{time_module.time()}] Socket disconnected (no client_id), sid={request.sid}")
     
     if client_id:
         clients[client_id]['connected'] = False
@@ -135,8 +145,13 @@ def handle_client_connect(data):
 
 @socketio.on('start_viewing')
 def handle_start_viewing(data):
+    import time
+    print(f"DEBUG start_viewing: [{time.time()}] Received data={data}")
+    print(f"DEBUG start_viewing: [{time.time()}] All clients: {list(clients.keys())}")
     client_id = data.get('client_id')
+    print(f"DEBUG start_viewing: [{time.time()}] client_id={client_id}, in clients={client_id in clients}")
     if not client_id or client_id not in clients:
+        print(f"DEBUG start_viewing: [{time.time()}] Client not found, returning early")
         return
     
     viewer_sid = request.sid
@@ -149,13 +164,16 @@ def handle_start_viewing(data):
     if len(viewers[client_id]) == 1 and clients[client_id].get('connected'):
         client_sid = clients[client_id].get('sid')
         if client_sid:
+            print(f"DEBUG start_viewing: [{time.time()}] Emitting start_streaming to client {client_id}, sid={client_sid}")
             socketio.emit('start_streaming', to=client_sid)
-            print(f"DEBUG: Started streaming for client {client_id}")
+            print(f"DEBUG start_viewing: [{time.time()}] Started streaming for client {client_id}")
 
 @socketio.on('stop_viewing')
 def handle_stop_viewing(data):
+    print(f"DEBUG stop_viewing: [{time.time()}] Received data={data}")
     client_id = data.get('client_id')
     if not client_id or client_id not in viewers:
+        print(f"DEBUG stop_viewing: [{time.time()}] Client not in viewers, returning early")
         return
     
     viewer_sid = request.sid
@@ -165,12 +183,71 @@ def handle_stop_viewing(data):
         if clients[client_id].get('connected'):
             client_sid = clients[client_id].get('sid')
             if client_sid:
+                print(f"DEBUG stop_viewing: [{time.time()}] Emitting stop_streaming to client {client_id}, sid={client_sid}")
                 socketio.emit('stop_streaming', to=client_sid)
-                print(f"DEBUG: Stopped streaming for client {client_id}")
+                print(f"DEBUG stop_viewing: [{time.time()}] Stopped streaming for client {client_id}")
+
+@socketio.on('request_file')
+def handle_request_file(data):
+    """Handle file request from web UI, forward to target client"""
+    import time as time_module
+    client_id = data.get('client_id')
+    file_path = data.get('path', '')
+    request_id = data.get('request_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG request_file: [{time_module.time()}] Received request for client={client_id}, path={file_path}")
+    
+    if not client_id or client_id not in clients:
+        print(f"DEBUG request_file: [{time_module.time()}] Client {client_id} not found")
+        socketio.emit('file_content', {
+            'error': 'Client not found',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    if not clients[client_id].get('connected'):
+        print(f"DEBUG request_file: [{time_module.time()}] Client {client_id} not connected")
+        socketio.emit('file_content', {
+            'error': 'Client not connected',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    client_sid = clients[client_id].get('sid')
+    if not client_sid:
+        print(f"DEBUG request_file: [{time_module.time()}] No SID for client {client_id}")
+        socketio.emit('file_content', {
+            'error': 'Client SID not found',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    print(f"DEBUG request_file: [{time_module.time()}] Forwarding to client {client_id}, sid={client_sid}")
+    socketio.emit('read_file', {
+        'path': file_path,
+        'req_id': request_id,
+        'webui_sid': webui_sid
+    }, to=client_sid)
+
+@socketio.on('file_content')
+def handle_file_content_from_client(data):
+    """Receive file content from client, forward to web UI"""
+    import time as time_module
+    req_id = data.get('req_id')
+    webui_sid = data.pop('webui_sid', None)
+    
+    print(f"DEBUG file_content: [{time_module.time()}] Received from client, forwarding to web UI")
+    
+    if webui_sid:
+        socketio.emit('file_content', data, to=webui_sid)
+    else:
+        print(f"DEBUG file_content: [{time_module.time()}] No webui_sid, broadcasting instead")
+        socketio.emit('file_content', data, broadcast=True)
 
 screenshot.setup_screenshot_handlers(socketio, clients)
 
-files.setup_file_handlers(socketio, pending_requests)
+files.setup_file_handlers(socketio, clients, pending_requests)
 files.setup_file_routes(app, require_auth)
 
 if __name__ == '__main__':

@@ -2,39 +2,34 @@ from flask_socketio import SocketIO, emit
 from threading import Event
 import os
 import base64
+import time
 
 socketio = None
 pending_requests = {}
+clients = None
 
-def setup_file_handlers(socketio_instance, pending_requests_dict):
-    global socketio, pending_requests
+def setup_file_handlers(socketio_instance, clients_dict, pending_requests_dict):
+    global socketio, pending_requests, clients
     socketio = socketio_instance
+    clients = clients_dict
     pending_requests = pending_requests_dict
 
-    @socketio_instance.on('read_file_response')
-    def handle_read_file_response(data):
-        req_id = data.pop('req_id', None)
-        if req_id and req_id in pending_requests:
-            pending_requests[req_id]['event'].set()
-
-    @socketio_instance.on('file_content')
-    def handle_file_content(data):
-        req_id = data.pop('req_id', None)
-        if req_id and req_id in pending_requests:
-            pending_requests[req_id]['data'] = data
-            pending_requests[req_id]['event'].set()
-
 def get_client_sid(client_id):
-    from main import clients
     if client_id in clients:
         return clients[client_id].get('sid')
     return None
 
 def request_file_from_client(client_id, file_path):
-    from main import clients
-    
+    import time as time_module
+    ts = time_module.time()
+    print(f"DEBUG request_file: [{ts}] Looking for client_id={client_id}")
+    print(f"DEBUG request_file: [{ts}] Available clients: {list(clients.keys())}")
+
     if client_id not in clients:
+        print(f"DEBUG request_file_from_client: Client {client_id} NOT FOUND in clients dict")
         return {'error': 'Client not found', 'error_code': 404}
+    
+    print(f"DEBUG request_file_from_client: Client found, connected={clients[client_id].get('connected')}")
     
     if not clients[client_id].get('connected'):
         return {'error': 'Client not connected', 'error_code': 404}
@@ -51,18 +46,19 @@ def request_file_from_client(client_id, file_path):
     event = Event()
     pending_requests[req_id] = {'data': None, 'event': event}
     
+    print(f"DEBUG request_file: [{time_module.time()}] Emitting read_file to sid={sid}, req_id={req_id}")
     socketio.emit('read_file', {'path': file_path, 'req_id': req_id}, to=sid)
     
-    print(f"DEBUG: Waiting for response...")
+    print(f"DEBUG request_file: [{time_module.time()}] Waiting for response (timeout=30s)...")
     event.wait(timeout=30)
     
     result = pending_requests.pop(req_id, {}).get('data')
     
     if not result:
-        print(f"DEBUG: Timeout waiting for client")
+        print(f"DEBUG request_file: [{time_module.time()}] TIMEOUT waiting for client")
         return {'error': 'Timeout waiting for client', 'error_code': 504}
     
-    print(f"DEBUG: Got result: {result.get('is_dir')}")
+    print(f"DEBUG request_file: [{time_module.time()}] Got result: is_dir={result.get('is_dir')}")
     return result
 
 def setup_file_routes(app, require_auth):

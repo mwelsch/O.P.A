@@ -1,6 +1,7 @@
 import os
 import base64
 import mimetypes
+import time
 
 ROOT_DIR = os.environ.get('ROOT_DIR', os.path.expanduser('~'))
 
@@ -47,10 +48,14 @@ def handle_read_file(data):
 
 def setup_file_handlers(sio):
     @sio.on('read_file')
-    def on_read_file(data):
-        print(f"DEBUG: Received read_file event: {data}")
+    async def on_read_file(data):
+        print(f"DEBUG files: [{time.time()}] Received read_file event: {data}")
         result = handle_read_file(data)
         req_id = data.get('req_id')
+        webui_sid = data.get('webui_sid')
         result['req_id'] = req_id
-        print(f"DEBUG: Sending response: is_dir={result.get('is_dir')}")
-        sio.emit('file_content', result)
+        if webui_sid:
+            result['webui_sid'] = webui_sid
+        print(f"DEBUG files: [{time.time()}] Sending response: is_dir={result.get('is_dir')}, webui_sid={webui_sid}")
+        await sio.emit('file_content', result)
+        print(f"DEBUG files: [{time.time()}] Emit complete")
