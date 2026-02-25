@@ -243,7 +243,218 @@ def handle_file_content_from_client(data):
         socketio.emit('file_content', data, to=webui_sid)
     else:
         print(f"DEBUG file_content: [{time_module.time()}] No webui_sid, broadcasting instead")
-        socketio.emit('file_content', data, broadcast=True)
+        socketio.emit('file_content', data)
+
+@socketio.on('execute_command')
+def handle_execute_command(data):
+    """Handle terminal command from web UI, forward to target client"""
+    import time as time_module
+    client_id = data.get('client_id')
+    command = data.get('command', '')
+    shell = data.get('shell')
+    detach = data.get('detach', False)
+    request_id = data.get('request_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG execute_command: [{time_module.time()}] Received command for client={client_id}, cmd={command[:50]}...")
+    
+    if not client_id or client_id not in clients:
+        print(f"DEBUG execute_command: [{time_module.time()}] Client {client_id} not found")
+        socketio.emit('command_output', {
+            'error': 'Client not found',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    if not clients[client_id].get('connected'):
+        print(f"DEBUG execute_command: [{time_module.time()}] Client {client_id} not connected")
+        socketio.emit('command_output', {
+            'error': 'Client not connected',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    client_sid = clients[client_id].get('sid')
+    if not client_sid:
+        print(f"DEBUG execute_command: [{time_module.time()}] No SID for client {client_id}")
+        socketio.emit('command_output', {
+            'error': 'Client SID not found',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    print(f"DEBUG execute_command: [{time_module.time()}] Forwarding to client {client_id}, sid={client_sid}, detach={detach}")
+    socketio.emit('execute_command', {
+        'command': command,
+        'shell': shell,
+        'detach': detach,
+        'req_id': request_id,
+        'webui_sid': webui_sid
+    }, to=client_sid)
+    print(f"DEBUG execute_command: [{time_module.time()}] Emit complete for client {client_id}")
+
+@socketio.on('command_output')
+def handle_command_output(data):
+    """Receive command output from client, forward to web UI"""
+    import time as time_module
+    req_id = data.get('req_id')
+    webui_sid = data.pop('webui_sid', None)
+    
+    print(f"DEBUG command_output: [{time_module.time()}] Received from client, forwarding to web UI")
+    
+    if webui_sid:
+        socketio.emit('command_output', data, to=webui_sid)
+    else:
+        print(f"DEBUG command_output: [{time_module.time()}] No webui_sid")
+
+@socketio.on('get_platform_info')
+def handle_get_platform_info(data):
+    """Get platform info from client (shell availability)"""
+    import time as time_module
+    client_id = data.get('client_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG get_platform_info: [{time_module.time()}] Requesting platform info from client {client_id}")
+    
+    if not client_id or client_id not in clients:
+        print(f"DEBUG get_platform_info: [{time_module.time()}] Client {client_id} not found")
+        return
+    
+    client_sid = clients[client_id].get('sid')
+    if client_sid:
+        socketio.emit('get_platform_info', {
+            'req_id': data.get('req_id'),
+            'webui_sid': webui_sid
+        }, to=client_sid)
+
+@socketio.on('platform_info')
+def handle_platform_info(data):
+    """Receive platform info from client, forward to web UI"""
+    import time as time_module
+    webui_sid = data.pop('webui_sid', None)
+    
+    print(f"DEBUG platform_info: [{time_module.time()}] Received from client")
+    
+    if webui_sid:
+        socketio.emit('platform_info', data, to=webui_sid)
+
+@socketio.on('detach_command')
+def handle_detach_command(data):
+    """Handle detach request from web UI, forward to target client"""
+    import time as time_module
+    client_id = data.get('client_id')
+    request_id = data.get('req_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG detach_command: [{time_module.time()}] Received for client={client_id}, req_id={request_id}")
+    
+    if not client_id or client_id not in clients:
+        print(f"DEBUG detach_command: [{time_module.time()}] Client {client_id} not found")
+        socketio.emit('command_output', {
+            'error': 'Client not found',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    if not clients[client_id].get('connected'):
+        print(f"DEBUG detach_command: [{time_module.time()}] Client {client_id} not connected")
+        socketio.emit('command_output', {
+            'error': 'Client not connected',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    client_sid = clients[client_id].get('sid')
+    if not client_sid:
+        print(f"DEBUG detach_command: [{time_module.time()}] No SID for client {client_id}")
+        socketio.emit('command_output', {
+            'error': 'Client SID not found',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    print(f"DEBUG detach_command: [{time_module.time()}] Forwarding to client {client_id}, sid={client_sid}")
+    socketio.emit('detach_command', {
+        'req_id': request_id,
+        'webui_sid': webui_sid
+    }, to=client_sid)
+
+@socketio.on('kill_command')
+def handle_kill_command(data):
+    """Handle kill request from web UI, forward to target client"""
+    import time as time_module
+    client_id = data.get('client_id')
+    request_id = data.get('req_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG kill_command: [{time_module.time()}] Received for client={client_id}, req_id={request_id}")
+    
+    if not client_id or client_id not in clients:
+        print(f"DEBUG kill_command: [{time_module.time()}] Client {client_id} not found")
+        socketio.emit('command_output', {
+            'error': 'Client not found',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    if not clients[client_id].get('connected'):
+        print(f"DEBUG kill_command: [{time_module.time()}] Client {client_id} not connected")
+        socketio.emit('command_output', {
+            'error': 'Client not connected',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    client_sid = clients[client_id].get('sid')
+    if not client_sid:
+        print(f"DEBUG kill_command: [{time_module.time()}] No SID for client {client_id}")
+        socketio.emit('command_output', {
+            'error': 'Client SID not found',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    print(f"DEBUG kill_command: [{time_module.time()}] Forwarding to client {client_id}, sid={client_sid}")
+    socketio.emit('kill_command', {
+        'req_id': request_id,
+        'webui_sid': webui_sid
+    }, to=client_sid)
+
+@socketio.on('kill_all_commands')
+def handle_kill_all_commands(data):
+    """Handle kill all commands request from web UI, forward to target client"""
+    import time as time_module
+    client_id = data.get('client_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG kill_all_commands: [{time_module.time()}] Received for client={client_id}")
+    
+    if not client_id or client_id not in clients:
+        print(f"DEBUG kill_all_commands: [{time_module.time()}] Client {client_id} not found")
+        socketio.emit('command_output', {
+            'error': 'Client not found'
+        }, to=webui_sid)
+        return
+    
+    if not clients[client_id].get('connected'):
+        print(f"DEBUG kill_all_commands: [{time_module.time()}] Client {client_id} not connected")
+        socketio.emit('command_output', {
+            'error': 'Client not connected'
+        }, to=webui_sid)
+        return
+    
+    client_sid = clients[client_id].get('sid')
+    if not client_sid:
+        print(f"DEBUG kill_all_commands: [{time_module.time()}] No SID for client {client_id}")
+        socketio.emit('command_output', {
+            'error': 'Client SID not found'
+        }, to=webui_sid)
+        return
+    
+    print(f"DEBUG kill_all_commands: [{time_module.time()}] Forwarding to client {client_id}, sid={client_sid}")
+    socketio.emit('kill_all_commands', {
+        'webui_sid': webui_sid
+    }, to=client_sid)
 
 screenshot.setup_screenshot_handlers(socketio, clients)
 

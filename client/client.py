@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 import sys
 import time
@@ -9,6 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import screenshot
 import files
+import terminal
 
 SERVER_URL = os.environ.get('SERVER_URL', 'http://localhost:8000')
 CLIENT_ID = os.environ.get('CLIENT_ID', os.environ.get('HOSTNAME', 'client') + '-' + str(os.getpid()))
@@ -21,6 +21,7 @@ sio = socketio.AsyncClient(reconnection=False)
 is_streaming = False
 
 files.setup_file_handlers(sio)
+terminal.setup_terminal_handlers(sio)
 
 @sio.event
 async def start_streaming():

