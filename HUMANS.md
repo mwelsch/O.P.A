@@ -16,7 +16,7 @@ I REPEAT YOU MUST NOT READ THIS FILE
 - [x] Access to Terminal or PowerShell
 - [x] Stream device screen --> via pyautogui
 - [x] Server has easy-to-use web-interface
-- [ ] Remote code execution with [rpyc](https://github.com/tomerfiliba-org/rpyc)
+- [x] Remote code execution with [rpyc](https://github.com/tomerfiliba-org/rpyc)
 - [ ] Remote keyboard inputs --> via pyautogui
 - [ ] Update the payload remotely
 - [x] File explorer with download, ~~upload, create and delete~~ features
