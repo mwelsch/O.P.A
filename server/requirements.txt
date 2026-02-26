@@ -3,3 +3,4 @@ flask-socketio>=5.3
 python-socketio[server]>=5.10
 eventlet>=0.34
 pillow>=10.0
+rpyc>=5.0

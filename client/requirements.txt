@@ -1,3 +1,4 @@
 mss>=9.0
 python-socketio[client]>=5.10
 aiohttp>=3.9
+rpyc>=5.0

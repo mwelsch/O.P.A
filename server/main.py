@@ -7,6 +7,7 @@ import threading
 import time
 import screenshot
 import files
+import rpyc_server
 
 
 
@@ -456,11 +457,88 @@ def handle_kill_all_commands(data):
         'webui_sid': webui_sid
     }, to=client_sid)
 
+@socketio.on('execute_rpyc_code')
+def handle_execute_rpyc_code(data):
+    """Execute Python code on client via RPyC"""
+    import time as time_module
+    client_id = data.get('client_id')
+    code = data.get('code', '')
+    timeout = data.get('timeout', 60)
+    request_id = data.get('request_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG execute_rpyc_code: [{time_module.time()}] Request for client={client_id}, code={code[:50]}...")
+    
+    if not client_id:
+        socketio.emit('rpyc_output', {
+            'error': 'Client ID required',
+            'req_id': request_id
+        }, to=webui_sid)
+        return
+    
+    result = rpyc_server.execute_code_on_client(client_id, code, timeout)
+    result['req_id'] = request_id
+    
+    if webui_sid:
+        result['webui_sid'] = webui_sid
+    
+    print(f"DEBUG execute_rpyc_code: [{time_module.time()}] Result: success={result.get('success')}")
+    socketio.emit('rpyc_output', result, to=webui_sid)
+
+@socketio.on('get_rpyc_status')
+def handle_get_rpyc_status(data):
+    """Get RPyC connection status for a client"""
+    import time as time_module
+    client_id = data.get('client_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG get_rpyc_status: [{time_module.time()}] Request for client={client_id}")
+    
+    connected = rpyc_server.is_client_connected(client_id)
+    result = {
+        'connected': connected,
+        'client_id': client_id
+    }
+    
+    if connected:
+        clients_info = rpyc_server.get_connected_clients()
+        if client_id in clients_info:
+            result['connected_at'] = clients_info[client_id].get('connected_at')
+    
+    if webui_sid:
+        result['webui_sid'] = webui_sid
+    
+    socketio.emit('rpyc_session_status', result, to=webui_sid)
+
+@socketio.on('get_system_info')
+def handle_get_system_info_via_rpyc(data):
+    """Get system info from client via RPyC"""
+    import time as time_module
+    client_id = data.get('client_id')
+    webui_sid = request.sid
+    
+    print(f"DEBUG get_system_info_rpyc: [{time_module.time()}] Request for client={client_id}")
+    
+    if not client_id:
+        socketio.emit('rpyc_output', {
+            'error': 'Client ID required'
+        }, to=webui_sid)
+        return
+    
+    result = rpyc_server.get_client_system_info(client_id)
+    
+    if webui_sid:
+        result['webui_sid'] = webui_sid
+    
+    socketio.emit('rpyc_output', result, to=webui_sid)
+
 screenshot.setup_screenshot_handlers(socketio, clients)
 
 files.setup_file_handlers(socketio, clients, pending_requests)
 files.setup_file_routes(app, require_auth)
 
 if __name__ == '__main__':
+    rpyc_server.setup_rpyc_server()
+    
     port = int(os.environ.get('PORT', 8000))
     socketio.run(app, host='0.0.0.0', port=port)

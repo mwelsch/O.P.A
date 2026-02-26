@@ -7,8 +7,11 @@ services:
       dockerfile: server/Dockerfile
     ports:
       - "8000:8000"
+      - "28946:28946"
     environment:
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASS=${ADMIN_PASS:-admin123}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
+      - RPYC_PORT=28946
+      - RPYC_SECRET=${RPYC_SECRET:-ChangeThisSecret}
     restart: unless-stopped

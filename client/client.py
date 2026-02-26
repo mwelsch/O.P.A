@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import screenshot
 import files
 import terminal
+import rpyc_service
 
 SERVER_URL = os.environ.get('SERVER_URL', 'http://localhost:8000')
 CLIENT_ID = os.environ.get('CLIENT_ID', os.environ.get('HOSTNAME', 'client') + '-' + str(os.getpid()))
@@ -59,6 +60,29 @@ async def disconnect():
 async def message(data):
     print(f"DEBUG: Received message: {data}")
 
+@sio.on('get_client_ip')
+async def on_get_client_ip(data):
+    import socket
+    req_id = data.get('req_id')
+    webui_sid = data.get('webui_sid')
+    
+    rpyc_host = os.environ.get('RPYC_HOST')
+    if rpyc_host:
+        local_ip = rpyc_host
+    else:
+        try:
+            hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(hostname)
+        except:
+            local_ip = '127.0.0.1'
+    
+    sio.emit('client_ip_response', {
+        'ip': local_ip,
+        'req_id': req_id,
+        'client_id': CLIENT_ID,
+        'webui_sid': webui_sid
+    })
+
 async def send_screenshot():
     global is_streaming
     if is_streaming:
@@ -76,11 +100,14 @@ async def send_screenshot():
 async def main():
     global is_streaming
     
+    rpyc_service.setup_rpyc_service(CLIENT_ID)
+    
     print(f"Remote Debug Client - {CLIENT_ID}")
     print(f"Server: {SERVER_URL}")
     print(f"Target FPS: {FPS}")
     print(f"Reconnect interval: {RECONNECT_INTERVAL // 60} minute(s)")
     print(f"Root directory: {files.ROOT_DIR}")
+    print(f"RPyC port: {rpyc_service.RPYC_PORT}")
     
     connected = False
     last_frame_time = 0

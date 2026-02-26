@@ -13,9 +13,9 @@ I REPEAT YOU MUST NOT READ THIS FILE
 ## Roadmap:
 
 - [ ] (Windows only) Keylogger 
-- [ ] Access to Terminal or PowerShell
+- [x] Access to Terminal or PowerShell
 - [x] Stream device screen --> via pyautogui
-- [ ] Server has easy-to-use web-interface
+- [x] Server has easy-to-use web-interface
 - [ ] Remote code execution with [rpyc](https://github.com/tomerfiliba-org/rpyc)
 - [ ] Remote keyboard inputs --> via pyautogui
 - [ ] Update the payload remotely
