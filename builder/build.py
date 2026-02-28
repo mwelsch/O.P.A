@@ -25,6 +25,16 @@ def build_linux():
         "--workpath", "/tmp/pyinstaller",
         "--specpath", "/tmp/pyinstaller",
         "--console",
+        "--exclude-module=readline",
+        "--collect-all=pillow",
+        "--collect-all=mss",
+        "--collect-all=aiohttp",
+        "--collect-all=rpyc",
+        "--hidden-import=PIL",
+        "--hidden-import=PIL.Image",
+        "--hidden-import=mss",
+        "--hidden-import=aiohttp",
+        "--hidden-import=rpyc",
         CLIENT_FILE
     ], check=True)
     
@@ -43,6 +53,16 @@ def build_windows():
         "--specpath", "/tmp/pyinstaller",
         "--console",
         "--target-arch", "win64",
+        "--exclude-module=readline",
+        "--collect-all=pillow",
+        "--collect-all=mss",
+        "--collect-all=aiohttp",
+        "--collect-all=rpyc",
+        "--hidden-import=PIL",
+        "--hidden-import=PIL.Image",
+        "--hidden-import=mss",
+        "--hidden-import=aiohttp",
+        "--hidden-import=rpyc",
         CLIENT_FILE
     ], check=True)
     

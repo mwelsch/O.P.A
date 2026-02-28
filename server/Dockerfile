@@ -11,9 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY server/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server/main.py /app/main.py
+COPY server/*.py /app/
+COPY server/version.json /app/version.json
 COPY web-ui /app/web-ui
 
-EXPOSE 8000
+EXPOSE 8000 28946
 
-CMD ["python", "main.py"]
+CMD ["python", "-u", "main.py"]

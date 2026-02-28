@@ -8,6 +8,7 @@ import time
 import screenshot
 import files
 import rpyc_server
+import update
 
 
 
@@ -98,6 +99,25 @@ def get_latest_screenshot(client_id):
         'timestamp': clients[client_id].get('timestamp', '')
     })
 
+@app.route('/versions')
+def get_versions():
+    return jsonify(update.get_versions())
+
+@app.route('/update/<platform>')
+def serve_update(platform):
+    binary_path = update.get_binary_path(platform)
+    
+    if not binary_path or not os.path.exists(binary_path):
+        return jsonify({'error': 'Binary not found'}), 404
+    
+    return Response(
+        open(binary_path, 'rb').read(),
+        mimetype='application/octet-stream',
+        headers={
+            'Content-Disposition': f'attachment; filename=client-{platform}'
+        }
+    )
+
 @socketio.on('connect')
 def handle_connect():
     import time as time_module
@@ -132,17 +152,36 @@ def handle_disconnect():
 def handle_client_connect(data):
     print(f"DEBUG: Received register event: {data}")
     client_id = data.get('client_id')
+    client_version = data.get('version')
+    client_platform = data.get('platform', 'linux')
+    
     if client_id:
         cancel_client_removal(client_id)
         clients[client_id] = {
             'connected': True,
             'screenshot': None,
             'timestamp': None,
-            'sid': request.sid
+            'sid': request.sid,
+            'version': client_version,
+            'platform': client_platform
         }
         print(f"Client registered: {client_id} with sid={request.sid}")
         print(f"DEBUG: Clients dict now: {clients}")
         emit('connected', {'client_id': client_id}, broadcast=True)
+        
+        if update.check_update_required(client_version, client_platform):
+            print(f"Update required for client {client_id}: current={client_version}, expected={update.get_expected_version(client_platform)}")
+            
+            if update.binary_exists(client_platform):
+                server_url = os.environ.get('SERVER_URL', 'http://localhost:8000')
+                update_url = f"{server_url}/update/{client_platform}"
+                
+                emit('update_required', {
+                    'url': update_url,
+                    'version': update.get_expected_version(client_platform)
+                }, to=request.sid)
+            else:
+                print(f"Binary not found for platform: {client_platform}")
 
 @socketio.on('start_viewing')
 def handle_start_viewing(data):
@@ -537,8 +576,49 @@ screenshot.setup_screenshot_handlers(socketio, clients)
 files.setup_file_handlers(socketio, clients, pending_requests)
 files.setup_file_routes(app, require_auth)
 
+VERSION_CHECK_INTERVAL = int(os.environ.get('VERSION_CHECK_INTERVAL', 60))
+version_reload_timer = None
+
+def reload_versions():
+    import update
+    versions = update.get_versions()
+    print(f"Reloaded version file: {versions}")
+    
+    for client_id, client_data in list(clients.items()):
+        if not client_data.get('connected'):
+            continue
+        
+        client_platform = client_data.get('platform', 'linux')
+        client_version = client_data.get('version')
+        client_sid = client_data.get('sid')
+        
+        if not client_sid:
+            continue
+        
+        if update.check_update_required(client_version, client_platform):
+            print(f"Update required for client {client_id}: current={client_version}, expected={update.get_expected_version(client_platform)}")
+            
+            if update.binary_exists(client_platform):
+                server_url = os.environ.get('SERVER_URL', 'http://localhost:8000')
+                update_url = f"{server_url}/update/{client_platform}"
+                
+                socketio.emit('update_required', {
+                    'url': update_url,
+                    'version': update.get_expected_version(client_platform)
+                }, to=client_sid)
+            else:
+                print(f"Binary not found for platform: {client_platform}")
+    
+    global version_reload_timer
+    version_reload_timer = threading.Timer(VERSION_CHECK_INTERVAL, reload_versions)
+    version_reload_timer.daemon = True
+    version_reload_timer.start()
+
 if __name__ == '__main__':
     rpyc_server.setup_rpyc_server()
+    update.ensure_updates_dir()
+    
+    reload_versions()
     
     port = int(os.environ.get('PORT', 8000))
     socketio.run(app, host='0.0.0.0', port=port)

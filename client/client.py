@@ -3,6 +3,10 @@ import sys
 import time
 import asyncio
 import socketio
+import platform
+import tempfile
+import subprocess
+import socket
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -10,12 +14,14 @@ import screenshot
 import files
 import terminal
 import rpyc_service
+import version
 
 SERVER_URL = os.environ.get('SERVER_URL', 'http://localhost:8000')
 CLIENT_ID = os.environ.get('CLIENT_ID', os.environ.get('HOSTNAME', 'client') + '-' + str(os.getpid()))
 FPS = 5
 FRAME_INTERVAL = 1.0 / FPS
 RECONNECT_INTERVAL = int(os.environ.get('RECONNECT_INTERVAL', 1)) * 60
+SELF_UPDATE_KILL = os.environ.get('SELF_UPDATE_KILL', 'true').lower() == 'true'
 
 sio = socketio.AsyncClient(reconnection=False)
 
@@ -39,7 +45,12 @@ async def stop_streaming():
 @sio.event
 async def connect():
     print(f"DEBUG connect: [{time.time()}] Connected to server, emitting register")
-    await sio.emit('register', {'client_id': CLIENT_ID})
+    client_platform = 'windows' if sys.platform == 'win32' else 'linux'
+    await sio.emit('register', {
+        'client_id': CLIENT_ID,
+        'version': version.VERSION,
+        'platform': client_platform
+    })
     print(f"DEBUG connect: [{time.time()}] Register emitted")
 
 @sio.event
@@ -82,6 +93,52 @@ async def on_get_client_ip(data):
         'client_id': CLIENT_ID,
         'webui_sid': webui_sid
     })
+
+@sio.on('update_required')
+async def on_update_required(data):
+    print(f"Update required: {data}")
+    
+    download_url = data.get('url')
+    new_version = data.get('version')
+    
+    if not download_url:
+        print("Update required but no URL provided")
+        return
+    
+    print(f"Downloading update from {download_url}")
+    
+    try:
+        import urllib.request
+        
+        response = urllib.request.urlopen(download_url)
+        binary_data = response.read()
+        
+        client_platform = 'windows' if sys.platform == 'win32' else 'linux'
+        ext = '.exe' if client_platform == 'windows' else ''
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as f:
+            f.write(binary_data)
+            temp_path = f.name
+        
+        os.chmod(temp_path, 0o755)
+        
+        print(f"Update downloaded to {temp_path}, executing...")
+        
+        env = os.environ.copy()
+        
+        subprocess.run([temp_path], env=env, close_fds=True)
+        
+        os.unlink(temp_path)
+        
+        print(f"Update process started, exiting current process (SELF_UPDATE_KILL={SELF_UPDATE_KILL})")
+        
+        if SELF_UPDATE_KILL:
+            sys.exit(0)
+        
+    except Exception as e:
+        print(f"Failed to download/execute update: {e}")
+        import traceback
+        traceback.print_exc()
 
 async def send_screenshot():
     global is_streaming

@@ -14,4 +14,8 @@ services:
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
       - RPYC_PORT=28946
       - RPYC_SECRET=${RPYC_SECRET:-ChangeThisSecret}
+      - VERSION_CHECK_INTERVAL=${VERSION_CHECK_INTERVAL:-60}
+    volumes:
+      - ./server/updates:/app/updates
+      - ./server/version.json:/app/version.json
     restart: unless-stopped
