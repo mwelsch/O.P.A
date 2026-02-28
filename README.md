@@ -3,27 +3,31 @@
 
 ## Quick Start
 
-### 1. Build the client builder image (one-time)
+### 1. Build the client
 
+**Using the build script (recommended):**
 ```bash
-docker build -t remote-debug-builder ./builder
+./build.sh
 ```
 
-### 2. Build client executable
+This script will:
+- Ask if you want to update the version
+- Build the Docker builder image (one-time)
+- Build the client executable
+- Copy the binary to `output/` and `server/updates/`
 
-**Linux (run on Linux):**
+**Manual build:**
 ```bash
+# Build client builder image (one-time)
+docker build -t remote-debug-builder ./builder
+
+# Build Linux client
 docker run --rm -v $(pwd)/output:/output -v $(pwd)/client:/src remote-debug-builder
 ```
 
-**Windows (run on Windows):**
-```cmd
-docker run --rm -v %CD%\output:/output -v %CD%\client:/src remote-debug-builder
-```
+Output: `output/client-linux`
 
-Output: `output/client-linux` or `output/client.exe`
-
-### 3. Run the server
+### 2. Run the server
 
 ```bash
 docker-compose up -d
@@ -33,21 +37,58 @@ Server: http://localhost:8000
 
 Default credentials: `admin` / `admin123`
 
-### 4. Run the client
+### 3. Run the client
 
-Set environment variables and run:
 ```bash
 export SERVER_URL=http://localhost:8000
 export CLIENT_ID=my-client
 ./output/client-linux
 ```
 
-Or on Windows:
-```cmd
-set SERVER_URL=http://localhost:8000
-set CLIENT_ID=my-client
-client.exe
+## Versioning & Self-Updating
+
+### How it works
+
+1. **Version file**: `server/version.json` contains the current version for each platform
+2. **Client registration**: When a client connects, it sends its version to the server
+3. **Version check**: Server compares client version vs. expected version in `version.json`
+4. **Update trigger**: If versions don't match, server sends update URL to client
+5. **Self-update**: Client downloads new binary, executes it, and replaces itself
+
+### Version file format
+
+```json
+{
+    "linux": "1.2.0",
+    "windows": "1.2.0"
+}
 ```
+
+### Updating versions
+
+**Option 1: Using build.sh**
+```bash
+./build.sh
+# Answer 'y' when prompted, enter new version (e.g., 1.2.0)
+```
+
+**Option 2: Manual edit**
+```bash
+vim server/version.json
+docker-compose restart
+```
+
+The server checks the version file every 60 seconds (configurable via `VERSION_CHECK_INTERVAL`) and will push updates to connected clients.
+
+### Deploying new versions
+
+1. Build new client binary with incremented version
+2. Copy to server's updates folder:
+   ```bash
+   cp output/client-linux server/updates/
+   ```
+3. Update version.json (via build.sh or manually)
+4. Connected clients will automatically update on next version check
 
 ## Environment Variables
 
@@ -58,6 +99,7 @@ client.exe
 | ADMIN_PASS | admin123 | Basic auth password |
 | SECRET_KEY | dev-secret-key | Flask secret key |
 | PORT | 8000 | Server port |
+| VERSION_CHECK_INTERVAL | 60 | Version file check interval (seconds) |
 | RPYC_PORT | 28946 | RPyC server port for reverse connections |
 | RPYC_SECRET | ChangeThisSecret | Shared secret for RPyC authentication |
 
@@ -71,6 +113,7 @@ client.exe
 | RPYC_SERVER | | Server IP/hostname for RPyC reverse connection |
 | RPYC_PORT | 28946 | RPyC server port (must match server) |
 | RPYC_SECRET | ChangeThisSecret | Shared secret (must match server) |
+| SELF_UPDATE_KILL | true | Whether to kill old process after update |
 
 ## Remote Code Execution (RPyC)
 
