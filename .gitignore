@@ -9,3 +9,5 @@ output/
 dist/
 build/
 *.egg-info/
+server/updates/client-linux
+server/updates/client.exe
